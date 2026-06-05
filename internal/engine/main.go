@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/abolcerek/Trading-Matching-Simulator/internal/engine/types"
 	"github.com/google/uuid"
@@ -24,6 +25,18 @@ type OrderBook struct {
 	BidTree *treemap.TreeMap[int64, *Price]
 	AskTree *treemap.TreeMap[int64, *Price]
 	Hashmap map[uuid.UUID]*OrderNode
+}
+
+type Fill struct {
+	Maker_order_id uuid.UUID
+	Taker_order_id uuid.UUID
+	Maker_user_id uuid.UUID
+	Taker_user_id uuid.UUID
+	Price int64
+	Quantity int64
+	Maker_remaining int64
+	Taker_remaining int64
+	Created_at time.Time
 }
 
 func NewOrderBook() *OrderBook{
@@ -124,4 +137,70 @@ func (orderbook *OrderBook) RemoveNode(order *OrderNode) {
 		delete(orderbook.Hashmap, order.Order.Id)
 		return
 	}
+}
+
+
+func (orderbook *OrderBook) Match(order *OrderNode) []Fill{
+	fills := []Fill{}
+	var tree *treemap.TreeMap[int64, *Price]
+	var isBuying bool
+	switch order.Order.Side {
+	case "bid", "buy":
+		tree = orderbook.AskTree
+		isBuying = true
+	case "ask", "sell":
+		tree = orderbook.BidTree
+		isBuying = false
+	default:
+		fmt.Println("Incorrect order side")
+		return fills
+	}
+	orderLoop:
+	for order.Order.Remaining_quantity > 0 { // While the orders remaining quantity is > 0
+		it := tree.Iterator()
+		if !it.Valid() {
+			fmt.Println("No opposing orders left")
+			break orderLoop
+		}
+		best_price, price_node := it.Key(), it.Value() // Get the lowest ask or highest bid 
+		if order.Order.Type == "limit" { // If its a limit buy or a limit ask
+			if isBuying && best_price > order.Order.Price { // If the lowest ask is greater then the price of the buy order
+				break orderLoop // break the loop
+			} else if isBuying == false && best_price < order.Order.Price{ // if the highest bid is less than the price of the ask order
+				break orderLoop // break the loop
+			} 
+		}
+		fill_quantity := min(order.Order.Remaining_quantity, price_node.Head.Order.Remaining_quantity) // Compute the quantity that will be filled
+		order.Order.Remaining_quantity -= fill_quantity // Decrement by fill quantity
+		price_node.Head.Order.Remaining_quantity -= fill_quantity // Decrement by fill quantity
+		fill := Fill{ // Create a fill event
+			Maker_order_id: price_node.Head.Order.Id,
+			Taker_order_id: order.Order.Id,
+			Maker_user_id: price_node.Head.Order.UserID,
+			Taker_user_id: order.Order.UserID,
+			Price: price_node.Price,
+			Quantity: fill_quantity,
+			Maker_remaining: price_node.Head.Order.Remaining_quantity,
+			Taker_remaining: order.Order.Remaining_quantity,
+			Created_at: time.Now(),
+		}
+		fills = append(fills, fill) // Append the fill to the slice of fills
+		if price_node.Head.Order.Remaining_quantity == 0 { // If the latest order at that price has been fufilled
+			orderbook.RemoveNode(price_node.Head) // Remove it from the orderbook
+		}
+	}
+	if order.Order.Type == "limit" && order.Order.Remaining_quantity > 0 { // If its a limit buy or ask and theres a remaining quantity
+		orderbook.AddOrder(order) // Add the order to the orderbook
+	}
+	return fills
+}
+
+
+func (orderbook *OrderBook) Cancel(order *OrderNode) {
+	orderNode, ok := orderbook.Hashmap[order.Order.Id]
+	if !ok {
+		fmt.Println("Order not found in the orderbook")
+		return
+	}
+	orderbook.RemoveNode(orderNode)
 }
