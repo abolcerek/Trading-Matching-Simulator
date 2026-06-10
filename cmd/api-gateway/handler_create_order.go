@@ -13,10 +13,10 @@ import (
 )
 
 type OrderRequest struct {
-	Side string
-	Type string
-	Price int64
-	Quantity int64
+	Side string `json:"side"`
+	Type string `json:"type"`
+	Price int64 `json:"price"`
+	Quantity int64 `json:"quantity"`
 }
 
 func (cfg apiConfig) HandlerCreateOrder(w http.ResponseWriter, r *http.Request) {
@@ -98,6 +98,13 @@ func (cfg apiConfig) HandlerCreateOrder(w http.ResponseWriter, r *http.Request) 
 		Remaining_quantity: database_order.RemainingQuantity,
 		Created_at: database_order.CreatedAt,
 	}
+	envelope := types.Envelope{
+		Tag: place,
+		Order: order,
+		Event_sequence_num: 0,
+		// Event sequence number will be implemented later
+	}
+	cfg.orderChannel <- envelope
 	data, err := json.Marshal(&order)
 	if err != nil {
 		err_params.Error = "Error marshalling JSON"

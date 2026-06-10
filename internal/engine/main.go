@@ -204,3 +204,27 @@ func (orderbook *OrderBook) Cancel(order *OrderNode) {
 	}
 	orderbook.RemoveNode(orderNode)
 }
+
+func RunEngine(orderbook *OrderBook, ch <-chan types.Envelope) {
+	for order := range ch {
+		switch order.Tag {
+		case "place":
+			placed_order_node := OrderNode{
+				Order: order.Order,
+				Next: nil,
+				Prev: nil,
+			}
+			fill_events := orderbook.Match(&placed_order_node)
+			fmt.Printf("Here are the fill events : %v", fill_events)
+		case "cancel":
+			canceled_order_node := OrderNode{
+				Order: order.Order,
+				Next: nil,
+				Prev: nil,
+			}
+			orderbook.Cancel(&canceled_order_node)
+		default:
+			fmt.Print("Incorrect order tag")
+		}
+	}
+}

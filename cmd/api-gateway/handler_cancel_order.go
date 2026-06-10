@@ -51,6 +51,13 @@ func (cfg apiConfig) HandlerCancelOrder(w http.ResponseWriter, r *http.Request) 
 		Remaining_quantity: order.RemainingQuantity,
 		Created_at: order.CreatedAt,
 	}
+	envelope := types.Envelope{
+		Tag: cancel,
+		Order: canceled_order,
+		Event_sequence_num: 0,
+		// Event sequence number will be implemented later
+	}
+	cfg.orderChannel <- envelope
 	data, err := json.Marshal(&canceled_order)
 	if err != nil {
 		err_params.Error = "Error marshalling JSON"

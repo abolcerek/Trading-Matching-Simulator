@@ -8,6 +8,8 @@ import (
 	"os"
 
 	"github.com/abolcerek/Trading-Matching-Simulator/internal/database"
+	"github.com/abolcerek/Trading-Matching-Simulator/internal/engine"
+	"github.com/abolcerek/Trading-Matching-Simulator/internal/engine/types"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
@@ -16,10 +18,13 @@ type apiConfig struct {
 	database *database.Queries
 	JWT_secret string
 	platform string
+	orderbook *engine.OrderBook
+	orderChannel chan types.Envelope
 }
 
 const balance = 1000
-
+const place = "place"
+const cancel = "cancel"
 
 func main() {
 	godotenv.Load()
@@ -45,6 +50,10 @@ func main() {
 	ApiCfg.database = database.New(db)
 	ApiCfg.JWT_secret = jwtSecret
 	ApiCfg.platform = platform
+	orderbook := engine.NewOrderBook()
+	ApiCfg.orderbook = orderbook
+	ApiCfg.orderChannel = make(chan types.Envelope, 100)
+	go engine.RunEngine(ApiCfg.orderbook, ApiCfg.orderChannel)
 	mux.HandleFunc("POST /api/users", ApiCfg.HandlerCreateUser)
 	mux.HandleFunc("PUT /api/users", ApiCfg.HandlerUpdateUser)
 	mux.HandleFunc("POST /api/login", ApiCfg.HandlerLogin)

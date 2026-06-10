@@ -18,3 +18,8 @@ type Order struct {
 	Created_at time.Time
 }
 
+type Envelope struct {
+	Tag string
+	Order Order
+	Event_sequence_num int64
+}
