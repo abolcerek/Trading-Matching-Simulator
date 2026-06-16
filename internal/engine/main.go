@@ -39,6 +39,37 @@ type Fill struct {
 	Created_at time.Time
 }
 
+type Rest struct {
+	Order_id uuid.UUID
+	User_id uuid.UUID
+	Side string
+	Price int64
+	Status string
+}
+
+type Cancel struct {
+	Order_id uuid.UUID
+	User_id uuid.UUID
+	Side string
+	Price int64
+	Quantity_removed int64
+}
+
+type EventType string
+
+const (
+	Filled EventType = "FILL"
+	Canceled EventType = "CANCEL"
+	Rested EventType = "REST"
+)
+
+type Event struct {
+	Type EventType
+	Fill Fill
+	Cancel Cancel
+	Rest Rest
+}
+
 func NewOrderBook() *OrderBook{
 	CreateAskTree := func() *treemap.TreeMap[int64, *Price]{
 		AskTree := treemap.NewWithKeyCompare[int64, *Price](func(a, b int64) bool {
@@ -140,8 +171,8 @@ func (orderbook *OrderBook) RemoveNode(order *OrderNode) {
 }
 
 
-func (orderbook *OrderBook) Match(order *OrderNode) []Fill{
-	fills := []Fill{}
+func (orderbook *OrderBook) Match(order *OrderNode) ([]Event, error) {
+	events := []Event{}
 	var tree *treemap.TreeMap[int64, *Price]
 	var isBuying bool
 	switch order.Order.Side {
@@ -152,8 +183,7 @@ func (orderbook *OrderBook) Match(order *OrderNode) []Fill{
 		tree = orderbook.BidTree
 		isBuying = false
 	default:
-		fmt.Println("Incorrect order side")
-		return fills
+		return []Event{}, fmt.Errorf("Incorrect order side")
 	}
 	orderLoop:
 	for order.Order.Remaining_quantity > 0 { // While the orders remaining quantity is > 0
@@ -184,29 +214,59 @@ func (orderbook *OrderBook) Match(order *OrderNode) []Fill{
 			Taker_remaining: order.Order.Remaining_quantity,
 			Created_at: time.Now(),
 		}
-		fills = append(fills, fill) // Append the fill to the slice of fills
+		events = append(events, Event{
+			Type: Filled,
+			Fill: fill,
+		})
 		if price_node.Head.Order.Remaining_quantity == 0 { // If the latest order at that price has been fufilled
 			orderbook.RemoveNode(price_node.Head) // Remove it from the orderbook
 		}
 	}
 	if order.Order.Type == "limit" && order.Order.Remaining_quantity > 0 { // If its a limit buy or ask and theres a remaining quantity
 		orderbook.AddOrder(order) // Add the order to the orderbook
+		var status string
+		if order.Order.Quantity == order.Order.Remaining_quantity {
+			status = "open"
+		} else {
+			status = "partially_filled"
+		}
+		events = append(events, Event{
+			Type: Rested,
+			Rest: Rest{
+				Order_id: order.Order.Id,
+				User_id: order.Order.UserID,
+				Side: order.Order.Side,
+				Price: order.Order.Price,
+				Status: status,
+			},
+		})
 	}
-	return fills
+	return events, nil
 }
 
 
-func (orderbook *OrderBook) Cancel(order *OrderNode) {
+func (orderbook *OrderBook) Cancel(order *OrderNode) ([]Event, error) {
+	var events []Event
 	orderNode, ok := orderbook.Hashmap[order.Order.Id]
 	if !ok {
-		fmt.Println("Order not found in the orderbook")
-		return
+		return []Event{}, fmt.Errorf("Order not found in the orderbook")
 	}
 	orderbook.RemoveNode(orderNode)
+	events = append(events, Event{
+		Type: Canceled,
+		Cancel: Cancel{
+			Order_id: order.Order.Id,
+			User_id: order.Order.UserID,
+			Side: order.Order.Side,
+			Price: order.Order.Price,
+			Quantity_removed: orderNode.Order.Remaining_quantity,
+		},
+	})
+	return events, nil
 }
 
-func RunEngine(orderbook *OrderBook, ch <-chan types.Envelope) {
-	for order := range ch {
+func RunEngine(orderbook *OrderBook, in <-chan types.Envelope, out chan<- []Event){
+	for order := range in {
 		switch order.Tag {
 		case "place":
 			placed_order_node := OrderNode{
@@ -214,15 +274,24 @@ func RunEngine(orderbook *OrderBook, ch <-chan types.Envelope) {
 				Next: nil,
 				Prev: nil,
 			}
-			fill_events := orderbook.Match(&placed_order_node)
-			fmt.Printf("Here are the fill events : %v", fill_events)
+			events, err := orderbook.Match(&placed_order_node)
+			if err != nil {
+				fmt.Println("Error when matching the order")
+			}
+			out <- events
+			fmt.Printf("Here are the events : %v", events)
 		case "cancel":
 			canceled_order_node := OrderNode{
 				Order: order.Order,
 				Next: nil,
 				Prev: nil,
 			}
-			orderbook.Cancel(&canceled_order_node)
+			canceled_event, err := orderbook.Cancel(&canceled_order_node)
+			if err != nil {
+				fmt.Println("Error when matching the order")
+			}
+			out <- canceled_event
+			fmt.Printf("Here is the canceled event : %v", canceled_event)
 		default:
 			fmt.Print("Incorrect order tag")
 		}

@@ -20,6 +20,7 @@ type apiConfig struct {
 	platform string
 	orderbook *engine.OrderBook
 	orderChannel chan types.Envelope
+	eventChannel chan []engine.Event
 }
 
 const balance = 1000
@@ -53,7 +54,8 @@ func main() {
 	orderbook := engine.NewOrderBook()
 	ApiCfg.orderbook = orderbook
 	ApiCfg.orderChannel = make(chan types.Envelope, 100)
-	go engine.RunEngine(ApiCfg.orderbook, ApiCfg.orderChannel)
+	ApiCfg.eventChannel = make(chan []engine.Event, 100)
+	go engine.RunEngine(ApiCfg.orderbook, ApiCfg.orderChannel, ApiCfg.eventChannel)
 	mux.HandleFunc("POST /api/users", ApiCfg.HandlerCreateUser)
 	mux.HandleFunc("PUT /api/users", ApiCfg.HandlerUpdateUser)
 	mux.HandleFunc("POST /api/login", ApiCfg.HandlerLogin)
