@@ -67,6 +67,7 @@ func main() {
 	mux.HandleFunc("PUT /api/users", ApiCfg.HandlerUpdateUser)
 	mux.HandleFunc("POST /api/login", ApiCfg.HandlerLogin)
 	mux.HandleFunc("POST /api/orders", ApiCfg.HandlerCreateOrder)
+	mux.HandleFunc("GET /api/orders/{orderID}", ApiCfg.HandlerGetOrder)
 	mux.HandleFunc("DELETE /api/orders/{orderID}", ApiCfg.HandlerCancelOrder)
 	log.Fatal(server.ListenAndServe())
 }

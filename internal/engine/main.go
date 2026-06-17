@@ -184,7 +184,7 @@ func (orderbook *OrderBook) Match(order *OrderNode) ([]Event, error) {
 	default:
 		return []Event{}, fmt.Errorf("Incorrect order side")
 	}
-orderLoop:
+	orderLoop:
 	for order.Order.Remaining_quantity > 0 { // While the orders remaining quantity is > 0
 		it := tree.Iterator()
 		if !it.Valid() {
