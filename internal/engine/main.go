@@ -21,6 +21,11 @@ type Price struct {
 	Tail  *OrderNode
 }
 
+type PriceLevel struct {
+	Price int64
+	Quantity int64
+}
+
 type OrderBook struct {
 	BidTree *treemap.TreeMap[int64, *Price]
 	AskTree *treemap.TreeMap[int64, *Price]
@@ -70,6 +75,15 @@ type Event struct {
 	Fill   Fill
 	Cancel Cancel
 	Rest   Rest
+}
+
+type Snapshot struct {
+	Bid []PriceLevel
+	Ask []PriceLevel
+}
+
+type SnapshotRequest struct {
+	Reply chan Snapshot
 }
 
 func NewOrderBook() *OrderBook {
@@ -265,35 +279,76 @@ func (orderbook *OrderBook) Cancel(order *OrderNode) ([]Event, error) {
 	return events, nil
 }
 
-func RunEngine(orderbook *OrderBook, in <-chan types.Envelope, out chan<- []Event) {
-	for order := range in {
-		switch order.Tag {
-		case "place":
-			placed_order_node := OrderNode{
-				Order: order.Order,
-				Next:  nil,
-				Prev:  nil,
+func (orderbook *OrderBook) Snapshot() Snapshot {
+	snapshot := Snapshot{}
+	BidPriceLevel := []PriceLevel{}
+	AskPriceLevel := []PriceLevel{}
+	for it := orderbook.BidTree.Iterator(); it.Valid(); it.Next() {
+		priceNode := it.Value()
+		price := priceNode.Price
+		quantity := int64(0)
+		for current := priceNode.Head; current != nil; current = current.Next {
+			quantity = quantity + current.Order.Remaining_quantity
+		}
+		priceLevel := PriceLevel{
+			Price: price,
+			Quantity: quantity,
+		}
+		BidPriceLevel = append(BidPriceLevel, priceLevel)
+	}
+	for it := orderbook.AskTree.Iterator(); it.Valid(); it.Next() {
+		priceNode := it.Value()
+		price := priceNode.Price
+		quantity := int64(0)
+		for current := priceNode.Head; current != nil; current = current.Next {
+			quantity = quantity + current.Order.Remaining_quantity
+		}
+		priceLevel := PriceLevel{
+			Price: price,
+			Quantity: quantity,
+		}
+		AskPriceLevel = append(AskPriceLevel, priceLevel)
+	}
+	snapshot.Bid = BidPriceLevel
+	snapshot.Ask = AskPriceLevel
+	return snapshot
+}
+
+func RunEngine(orderbook *OrderBook, in <-chan types.Envelope, out chan<- []Event, snapshot <- chan SnapshotRequest) {
+	for {
+		select {
+		case order := <- in:
+			switch order.Tag {
+			case "place":
+				placed_order_node := OrderNode{
+					Order: order.Order,
+					Next:  nil,
+					Prev:  nil,
+				}
+				events, err := orderbook.Match(&placed_order_node)
+				if err != nil {
+					fmt.Println("Error when matching the order")
+				}
+				out <- events
+				fmt.Printf("Here are the events : %v", events)
+			case "cancel":
+				canceled_order_node := OrderNode{
+					Order: order.Order,
+					Next:  nil,
+					Prev:  nil,
+				}
+				canceled_event, err := orderbook.Cancel(&canceled_order_node)
+				if err != nil {
+					fmt.Println("Error when matching the order")
+				}
+				out <- canceled_event
+				fmt.Printf("Here is the canceled event : %v", canceled_event)
+			default:
+				fmt.Print("Incorrect order tag")
 			}
-			events, err := orderbook.Match(&placed_order_node)
-			if err != nil {
-				fmt.Println("Error when matching the order")
-			}
-			out <- events
-			fmt.Printf("Here are the events : %v", events)
-		case "cancel":
-			canceled_order_node := OrderNode{
-				Order: order.Order,
-				Next:  nil,
-				Prev:  nil,
-			}
-			canceled_event, err := orderbook.Cancel(&canceled_order_node)
-			if err != nil {
-				fmt.Println("Error when matching the order")
-			}
-			out <- canceled_event
-			fmt.Printf("Here is the canceled event : %v", canceled_event)
-		default:
-			fmt.Print("Incorrect order tag")
+		case request := <- snapshot:
+			current_snapshot := orderbook.Snapshot()
+			request.Reply <- current_snapshot
 		}
 	}
 }

@@ -22,6 +22,7 @@ type apiConfig struct {
 	orderbook *engine.OrderBook
 	orderChannel chan types.Envelope
 	eventChannel chan []engine.Event
+	requestChannel chan engine.SnapshotRequest
 }
 
 const balance = 1000
@@ -57,11 +58,12 @@ func main() {
 	ApiCfg.orderbook = orderbook
 	ApiCfg.orderChannel = make(chan types.Envelope, 100)
 	ApiCfg.eventChannel = make(chan []engine.Event, 100)
+	ApiCfg.requestChannel = make(chan engine.SnapshotRequest)
 	err = ApiCfg.Replay()
 	if err != nil {
 		log.Fatalf("Error replaying orders from the database: %v", err)
 	}
-	go engine.RunEngine(ApiCfg.orderbook, ApiCfg.orderChannel, ApiCfg.eventChannel)
+	go engine.RunEngine(ApiCfg.orderbook, ApiCfg.orderChannel, ApiCfg.eventChannel, ApiCfg.requestChannel)
 	go ApiCfg.Consumer(ApiCfg.eventChannel)
 	mux.HandleFunc("POST /api/users", ApiCfg.HandlerCreateUser)
 	mux.HandleFunc("PUT /api/users", ApiCfg.HandlerUpdateUser)
@@ -69,5 +71,6 @@ func main() {
 	mux.HandleFunc("POST /api/orders", ApiCfg.HandlerCreateOrder)
 	mux.HandleFunc("GET /api/orders/{orderID}", ApiCfg.HandlerGetOrder)
 	mux.HandleFunc("DELETE /api/orders/{orderID}", ApiCfg.HandlerCancelOrder)
+	mux.HandleFunc("GET /api/book", ApiCfg.HandlerGetBook)
 	log.Fatal(server.ListenAndServe())
 }
