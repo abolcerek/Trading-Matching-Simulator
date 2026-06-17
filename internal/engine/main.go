@@ -11,14 +11,14 @@ import (
 
 type OrderNode struct {
 	Order types.Order
-	Next *OrderNode
-	Prev *OrderNode
+	Next  *OrderNode
+	Prev  *OrderNode
 }
 
 type Price struct {
 	Price int64
-	Head *OrderNode
-	Tail *OrderNode
+	Head  *OrderNode
+	Tail  *OrderNode
 }
 
 type OrderBook struct {
@@ -28,57 +28,59 @@ type OrderBook struct {
 }
 
 type Fill struct {
-	Maker_order_id uuid.UUID
-	Taker_order_id uuid.UUID
-	Maker_user_id uuid.UUID
-	Taker_user_id uuid.UUID
-	Price int64
-	Quantity int64
+	Maker_order_id  uuid.UUID
+	Taker_order_id  uuid.UUID
+	Maker_user_id   uuid.UUID
+	Taker_user_id   uuid.UUID
+	Price           int64
+	Quantity        int64
+	Side            string
 	Maker_remaining int64
 	Taker_remaining int64
-	Created_at time.Time
+	Created_at      time.Time
 }
 
 type Rest struct {
-	Order_id uuid.UUID
-	User_id uuid.UUID
-	Side string
-	Price int64
-	Status string
+	Order_id           uuid.UUID
+	User_id            uuid.UUID
+	Side               string
+	Price              int64
+	Status             string
+	Remaining_quantity int64
 }
 
 type Cancel struct {
-	Order_id uuid.UUID
-	User_id uuid.UUID
-	Side string
-	Price int64
+	Order_id         uuid.UUID
+	User_id          uuid.UUID
+	Side             string
+	Price            int64
 	Quantity_removed int64
 }
 
 type EventType string
 
 const (
-	Filled EventType = "FILL"
+	Filled   EventType = "FILL"
 	Canceled EventType = "CANCEL"
-	Rested EventType = "REST"
+	Rested   EventType = "REST"
 )
 
 type Event struct {
-	Type EventType
-	Fill Fill
+	Type   EventType
+	Fill   Fill
 	Cancel Cancel
-	Rest Rest
+	Rest   Rest
 }
 
-func NewOrderBook() *OrderBook{
-	CreateAskTree := func() *treemap.TreeMap[int64, *Price]{
+func NewOrderBook() *OrderBook {
+	CreateAskTree := func() *treemap.TreeMap[int64, *Price] {
 		AskTree := treemap.NewWithKeyCompare[int64, *Price](func(a, b int64) bool {
 			return a < b
 		})
 		return AskTree
 	}
 
-	CreateBidTree := func() *treemap.TreeMap[int64, *Price]{
+	CreateBidTree := func() *treemap.TreeMap[int64, *Price] {
 		BidTree := treemap.NewWithKeyCompare[int64, *Price](func(a, b int64) bool {
 			return a > b
 		})
@@ -92,7 +94,6 @@ func NewOrderBook() *OrderBook{
 	}
 	return &orderbook
 }
-
 
 func (orderbook *OrderBook) AddOrder(order *OrderNode) {
 	var tree *treemap.TreeMap[int64, *Price]
@@ -109,8 +110,8 @@ func (orderbook *OrderBook) AddOrder(order *OrderNode) {
 	if !ok {
 		new_price_node := Price{
 			Price: order.Order.Price,
-			Head: order,
-			Tail: order,
+			Head:  order,
+			Tail:  order,
 		}
 		tree.Set(order.Order.Price, &new_price_node)
 		orderbook.Hashmap[order.Order.Id] = order
@@ -121,7 +122,6 @@ func (orderbook *OrderBook) AddOrder(order *OrderNode) {
 	price_node.Tail = order
 	orderbook.Hashmap[order.Order.Id] = order
 }
-
 
 func (orderbook *OrderBook) RemoveNode(order *OrderNode) {
 	var tree *treemap.TreeMap[int64, *Price]
@@ -140,7 +140,7 @@ func (orderbook *OrderBook) RemoveNode(order *OrderNode) {
 		return
 	}
 	// When there is only one order in the doubly linked list
-	if price_node.Head == order && price_node.Tail == order{
+	if price_node.Head == order && price_node.Tail == order {
 		tree.Del(order.Order.Price)
 		delete(orderbook.Hashmap, order.Order.Id)
 		return
@@ -151,7 +151,7 @@ func (orderbook *OrderBook) RemoveNode(order *OrderNode) {
 		order.Next.Prev = nil
 		order.Next = nil
 		delete(orderbook.Hashmap, order.Order.Id)
-		return		
+		return
 	}
 	// When the order node is the tail of the doubly linked list
 	if price_node.Tail == order && price_node.Head != order {
@@ -170,7 +170,6 @@ func (orderbook *OrderBook) RemoveNode(order *OrderNode) {
 	}
 }
 
-
 func (orderbook *OrderBook) Match(order *OrderNode) ([]Event, error) {
 	events := []Event{}
 	var tree *treemap.TreeMap[int64, *Price]
@@ -185,34 +184,35 @@ func (orderbook *OrderBook) Match(order *OrderNode) ([]Event, error) {
 	default:
 		return []Event{}, fmt.Errorf("Incorrect order side")
 	}
-	orderLoop:
+orderLoop:
 	for order.Order.Remaining_quantity > 0 { // While the orders remaining quantity is > 0
 		it := tree.Iterator()
 		if !it.Valid() {
 			fmt.Println("No opposing orders left")
 			break orderLoop
 		}
-		best_price, price_node := it.Key(), it.Value() // Get the lowest ask or highest bid 
-		if order.Order.Type == "limit" { // If its a limit buy or a limit ask
+		best_price, price_node := it.Key(), it.Value() // Get the lowest ask or highest bid
+		if order.Order.Type == "limit" {               // If its a limit buy or a limit ask
 			if isBuying && best_price > order.Order.Price { // If the lowest ask is greater then the price of the buy order
 				break orderLoop // break the loop
-			} else if isBuying == false && best_price < order.Order.Price{ // if the highest bid is less than the price of the ask order
+			} else if isBuying == false && best_price < order.Order.Price { // if the highest bid is less than the price of the ask order
 				break orderLoop // break the loop
-			} 
+			}
 		}
 		fill_quantity := min(order.Order.Remaining_quantity, price_node.Head.Order.Remaining_quantity) // Compute the quantity that will be filled
-		order.Order.Remaining_quantity -= fill_quantity // Decrement by fill quantity
-		price_node.Head.Order.Remaining_quantity -= fill_quantity // Decrement by fill quantity
-		fill := Fill{ // Create a fill event
-			Maker_order_id: price_node.Head.Order.Id,
-			Taker_order_id: order.Order.Id,
-			Maker_user_id: price_node.Head.Order.UserID,
-			Taker_user_id: order.Order.UserID,
-			Price: price_node.Price,
-			Quantity: fill_quantity,
+		order.Order.Remaining_quantity -= fill_quantity                                                // Decrement by fill quantity
+		price_node.Head.Order.Remaining_quantity -= fill_quantity                                      // Decrement by fill quantity
+		fill := Fill{                                                                                  // Create a fill event
+			Maker_order_id:  price_node.Head.Order.Id,
+			Taker_order_id:  order.Order.Id,
+			Maker_user_id:   price_node.Head.Order.UserID,
+			Taker_user_id:   order.Order.UserID,
+			Price:           price_node.Price,
+			Quantity:        fill_quantity,
+			Side:            order.Order.Side,
 			Maker_remaining: price_node.Head.Order.Remaining_quantity,
 			Taker_remaining: order.Order.Remaining_quantity,
-			Created_at: time.Now(),
+			Created_at:      time.Now(),
 		}
 		events = append(events, Event{
 			Type: Filled,
@@ -233,17 +233,17 @@ func (orderbook *OrderBook) Match(order *OrderNode) ([]Event, error) {
 		events = append(events, Event{
 			Type: Rested,
 			Rest: Rest{
-				Order_id: order.Order.Id,
-				User_id: order.Order.UserID,
-				Side: order.Order.Side,
-				Price: order.Order.Price,
-				Status: status,
+				Order_id:           order.Order.Id,
+				User_id:            order.Order.UserID,
+				Side:               order.Order.Side,
+				Price:              order.Order.Price,
+				Status:             status,
+				Remaining_quantity: order.Order.Remaining_quantity,
 			},
 		})
 	}
 	return events, nil
 }
-
 
 func (orderbook *OrderBook) Cancel(order *OrderNode) ([]Event, error) {
 	var events []Event
@@ -255,24 +255,24 @@ func (orderbook *OrderBook) Cancel(order *OrderNode) ([]Event, error) {
 	events = append(events, Event{
 		Type: Canceled,
 		Cancel: Cancel{
-			Order_id: order.Order.Id,
-			User_id: order.Order.UserID,
-			Side: order.Order.Side,
-			Price: order.Order.Price,
+			Order_id:         order.Order.Id,
+			User_id:          order.Order.UserID,
+			Side:             order.Order.Side,
+			Price:            order.Order.Price,
 			Quantity_removed: orderNode.Order.Remaining_quantity,
 		},
 	})
 	return events, nil
 }
 
-func RunEngine(orderbook *OrderBook, in <-chan types.Envelope, out chan<- []Event){
+func RunEngine(orderbook *OrderBook, in <-chan types.Envelope, out chan<- []Event) {
 	for order := range in {
 		switch order.Tag {
 		case "place":
 			placed_order_node := OrderNode{
 				Order: order.Order,
-				Next: nil,
-				Prev: nil,
+				Next:  nil,
+				Prev:  nil,
 			}
 			events, err := orderbook.Match(&placed_order_node)
 			if err != nil {
@@ -283,8 +283,8 @@ func RunEngine(orderbook *OrderBook, in <-chan types.Envelope, out chan<- []Even
 		case "cancel":
 			canceled_order_node := OrderNode{
 				Order: order.Order,
-				Next: nil,
-				Prev: nil,
+				Next:  nil,
+				Prev:  nil,
 			}
 			canceled_event, err := orderbook.Cancel(&canceled_order_node)
 			if err != nil {

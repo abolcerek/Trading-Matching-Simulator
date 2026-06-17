@@ -16,6 +16,7 @@ import (
 
 type apiConfig struct {
 	database *database.Queries
+	db *sql.DB
 	JWT_secret string
 	platform string
 	orderbook *engine.OrderBook
@@ -49,6 +50,7 @@ func main() {
 	}
 	ApiCfg := apiConfig{}
 	ApiCfg.database = database.New(db)
+	ApiCfg.db = db
 	ApiCfg.JWT_secret = jwtSecret
 	ApiCfg.platform = platform
 	orderbook := engine.NewOrderBook()
@@ -56,6 +58,7 @@ func main() {
 	ApiCfg.orderChannel = make(chan types.Envelope, 100)
 	ApiCfg.eventChannel = make(chan []engine.Event, 100)
 	go engine.RunEngine(ApiCfg.orderbook, ApiCfg.orderChannel, ApiCfg.eventChannel)
+	go ApiCfg.Consumer(ApiCfg.eventChannel)
 	mux.HandleFunc("POST /api/users", ApiCfg.HandlerCreateUser)
 	mux.HandleFunc("PUT /api/users", ApiCfg.HandlerUpdateUser)
 	mux.HandleFunc("POST /api/login", ApiCfg.HandlerLogin)

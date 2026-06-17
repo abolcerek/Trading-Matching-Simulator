@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
+	"github.com/lib/pq"
 	"net/http"
 	"time"
 
@@ -50,6 +52,14 @@ func (cfg *apiConfig) HandlerCreateUser(w http.ResponseWriter, r *http.Request) 
 		Balance: balance,
 	}
 	database_user, err := cfg.database.CreateUser(r.Context(), create_user_params)
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) {
+		if pqErr.Code == "23505" {
+			err_params.Error = "Email is already in use"
+			handleErrors(w, &err_params, 400)
+			return
+		}
+	}
 	if err != nil {
 		err_params.Error = "Something went wrong"
 		handleErrors(w, &err_params, 400)
