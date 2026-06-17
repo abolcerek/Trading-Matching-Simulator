@@ -57,6 +57,10 @@ func main() {
 	ApiCfg.orderbook = orderbook
 	ApiCfg.orderChannel = make(chan types.Envelope, 100)
 	ApiCfg.eventChannel = make(chan []engine.Event, 100)
+	err = ApiCfg.Replay()
+	if err != nil {
+		log.Fatalf("Error replaying orders from the database: %v", err)
+	}
 	go engine.RunEngine(ApiCfg.orderbook, ApiCfg.orderChannel, ApiCfg.eventChannel)
 	go ApiCfg.Consumer(ApiCfg.eventChannel)
 	mux.HandleFunc("POST /api/users", ApiCfg.HandlerCreateUser)

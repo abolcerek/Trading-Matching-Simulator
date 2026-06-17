@@ -10,7 +10,9 @@ import (
 )
 
 const replay = `-- name: Replay :many
-SELECT order_id, sequence_num, user_id, side, type, price, quantity, remaining_quantity, status, created_at FROM orders ORDER BY sequence_num
+SELECT order_id, sequence_num, user_id, side, type, price, quantity, remaining_quantity, status, created_at FROM orders 
+WHERE status IN ('open', 'partially_filled')
+ORDER BY sequence_num
 `
 
 func (q *Queries) Replay(ctx context.Context) ([]Order, error) {
