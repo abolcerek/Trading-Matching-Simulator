@@ -314,7 +314,7 @@ func (orderbook *OrderBook) Snapshot() Snapshot {
 	return snapshot
 }
 
-func RunEngine(orderbook *OrderBook, in <-chan types.Envelope, out chan<- []Event, snapshot <- chan SnapshotRequest) {
+func RunEngine(orderbook *OrderBook, in <-chan types.Envelope, writerChan chan<- []Event, wsChan chan<- []Event, snapshot <- chan SnapshotRequest) {
 	for {
 		select {
 		case order := <- in:
@@ -329,7 +329,8 @@ func RunEngine(orderbook *OrderBook, in <-chan types.Envelope, out chan<- []Even
 				if err != nil {
 					fmt.Println("Error when matching the order")
 				}
-				out <- events
+				writerChan <- events
+				wsChan <- events
 				fmt.Printf("Here are the events : %v", events)
 			case "cancel":
 				canceled_order_node := OrderNode{
@@ -341,7 +342,8 @@ func RunEngine(orderbook *OrderBook, in <-chan types.Envelope, out chan<- []Even
 				if err != nil {
 					fmt.Println("Error when matching the order")
 				}
-				out <- canceled_event
+				writerChan <- canceled_event
+				wsChan <- canceled_event
 				fmt.Printf("Here is the canceled event : %v", canceled_event)
 			default:
 				fmt.Print("Incorrect order tag")
