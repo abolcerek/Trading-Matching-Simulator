@@ -54,6 +54,7 @@ func main() {
 		Addr: ":" + port,
 		Handler: mux,
 	}
+	server.Handler = CORSmiddleware(mux)
 	ApiCfg := apiConfig{}
 	ApiCfg.database = database.New(db)
 	ApiCfg.db = db
