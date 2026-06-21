@@ -1,15 +1,15 @@
+import { useNavigate, Link} from 'react-router-dom';
 import './App.css'
 import { useState,  } from 'react';
-import { useNavigate, Link} from 'react-router-dom';
 
 
-function Login ({setToken}){
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const navigate = useNavigate();
+function SignUp (){
+    const [email, setEmail] = useState('')
+    const [password, setPassword] = useState('')
+    const navigate = useNavigate()
 
-    const handleLogin = async () => {
-        const response = await fetch('http://localhost:8080/api/login', {
+    const handleSignUp = async () => {
+        const response = await fetch('http://localhost:8080/api/users', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -21,10 +21,9 @@ function Login ({setToken}){
         });
         const data = await response.json()
         if (response.ok) {
-            setToken(data.token)
-            navigate('/trade')
+            navigate('/login')
         } else {
-            console.log(data) // Implement later
+            console.log(data)
         }
     }
     return (
@@ -37,13 +36,13 @@ function Login ({setToken}){
                 <input type="password" 
                 value={password}
                 onChange={e => setPassword(e.target.value)}/>
-            <button onClick={handleLogin}>
+            <button onClick={handleSignUp}>
                 Submit
             </button>
-            <Link to="/signup">Need an account? Sign up</Link>
+            <Link to="/login">Already have an account? Log in</Link>
         </div>
     )
 }
 
 
-export default Login
+export default SignUp
