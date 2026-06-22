@@ -11,10 +11,12 @@ import (
 	"github.com/abolcerek/Trading-Matching-Simulator/internal/database"
 	"github.com/abolcerek/Trading-Matching-Simulator/internal/engine"
 	"github.com/abolcerek/Trading-Matching-Simulator/internal/engine/types"
+	"github.com/abolcerek/Trading-Matching-Simulator/internal/queue"
 	"github.com/coder/websocket"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type apiConfig struct {
@@ -24,10 +26,10 @@ type apiConfig struct {
 	platform string
 	orderbook *engine.OrderBook
 	orderChannel chan types.Envelope
-	writerChannel chan []engine.Event
-	wsChannel chan []engine.Event
+	eventChannel chan []engine.Event
 	requestChannel chan engine.SnapshotRequest
-	ConnectionRegistry *Registry
+	connectionRegistry *Registry
+	rabbitmqConnection *amqp.Connection
 }
 
 const balance = 1000
@@ -58,15 +60,20 @@ func main() {
 	ApiCfg := apiConfig{}
 	ApiCfg.database = database.New(db)
 	ApiCfg.db = db
+	conn, err := queue.Connect()
+	if err != nil {
+		log.Fatalf("Error connecting to RabbitMQ: %v", err)
+	}
+	defer conn.Close()
+	ApiCfg.rabbitmqConnection = conn
 	ApiCfg.JWT_secret = jwtSecret
 	ApiCfg.platform = platform
 	orderbook := engine.NewOrderBook()
 	ApiCfg.orderbook = orderbook
 	ApiCfg.orderChannel = make(chan types.Envelope, 100)
-	ApiCfg.writerChannel = make(chan []engine.Event, 100)
-	ApiCfg.wsChannel = make(chan []engine.Event, 100)
+	ApiCfg.eventChannel = make(chan []engine.Event, 100)
 	ApiCfg.requestChannel = make(chan engine.SnapshotRequest)
-	ApiCfg.ConnectionRegistry = &Registry{
+	ApiCfg.connectionRegistry = &Registry{
 		Connections: map[*websocket.Conn]uuid.UUID{},
 		mu: sync.Mutex{},
 	}
@@ -74,9 +81,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error replaying orders from the database: %v", err)
 	}
-	go engine.RunEngine(ApiCfg.orderbook, ApiCfg.orderChannel, ApiCfg.writerChannel, ApiCfg.wsChannel, ApiCfg.requestChannel)
-	go ApiCfg.Consumer(ApiCfg.writerChannel)
-	go ApiCfg.Ws(ApiCfg.wsChannel)
+	go engine.RunEngine(ApiCfg.orderbook, ApiCfg.orderChannel, ApiCfg.eventChannel, ApiCfg.requestChannel)
+	// go ApiCfg.Consumer(ApiCfg.eventChannel)
+	// go ApiCfg.Ws(ApiCfg.eventChannel)
+	go ApiCfg.Publisher(ApiCfg.eventChannel)
 	mux.HandleFunc("GET /api/ws", ApiCfg.HandlerWebSocket)
 	mux.HandleFunc("POST /api/users", ApiCfg.HandlerCreateUser)
 	mux.HandleFunc("PUT /api/users", ApiCfg.HandlerUpdateUser)

@@ -10,6 +10,7 @@ require (
 	github.com/igrmk/treemap/v2 v2.0.1 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/lib/pq v1.12.3 // indirect
+	github.com/rabbitmq/amqp091-go v1.12.0 // indirect
 	golang.org/x/crypto v0.14.0 // indirect
 	golang.org/x/exp v0.0.0-20220317015231-48e79f11773a // indirect
 	golang.org/x/sys v0.13.0 // indirect

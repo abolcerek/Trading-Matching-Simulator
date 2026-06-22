@@ -39,8 +39,8 @@ func (cfg *apiConfig) HandlerWebSocket(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Error writing to websocket: %v", err)
 		return
 	}
-	cfg.ConnectionRegistry.add(conn)
-	defer cfg.ConnectionRegistry.remove(conn)
+	cfg.connectionRegistry.add(conn)
+	defer cfg.connectionRegistry.remove(conn)
 	for {
 		_, _, err := conn.Read(r.Context())
 		if err != nil {
@@ -85,6 +85,6 @@ func (cfg *apiConfig) Ws(ch <-chan []engine.Event) {
 		if err != nil {
 			fmt.Printf("Error marshalling snapshot: %v", err)
 		}
-		cfg.ConnectionRegistry.broadcast(data)
+		cfg.connectionRegistry.broadcast(data)
 	}
 }
