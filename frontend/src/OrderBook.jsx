@@ -20,32 +20,25 @@ function OrderBook() {
   }, [])
   return (
     <>
-      <section id="top">
-        <div>
-          <h1>Order Book</h1>
-        </div>
-      </section>
-      <section id="center">
-        <div>
-          <h2>Book</h2>
-          <div className='book'>
-            <div className="asks">
-              {book.Ask.reverse().map((level) => (
-                <div className="ask-row" key={level.Price}>
-                  <span>{level.Price}</span><span>{level.Quantity}</span>
-                </div>
-              ))}
-            </div>
-            <div className="bids">
-              {book.Bid.map((level) => (
-                <div className="bid-row" key={level.Price}>
-                  <span>{level.Price}</span><span>{level.Quantity}</span>
-                </div>
-              ))}
-            </div>
+      <div >
+        <h2>Book</h2>
+        <div className='book'>
+          <div className="asks">
+            {[...book.Ask].reverse().map((level) => (
+              <div className="ask-row" key={level.Price}>
+                <span>{level.Price}</span><span>{level.Quantity}</span>
+              </div>
+            ))}
+          </div>
+          <div className="bids">
+            {book.Bid.map((level) => (
+              <div className="bid-row" key={level.Price}>
+                <span>{level.Price}</span><span>{level.Quantity}</span>
+              </div>
+            ))}
           </div>
         </div>
-      </section>
+      </div>
     </>
   );
 }

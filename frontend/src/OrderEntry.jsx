@@ -25,27 +25,29 @@ function OrderEntry({token}) {
 
     return (
         <div>
-            <label> Enter order side: </label>
-                <select value={side} onChange={e => setSide(e.target.value)}>
-                    <option value="buy">Buy</option>
-                    <option value="sell">Sell</option>
-                </select>
-            <label> Enter order price: </label>
-                <input type="number"
-                value={price}
-                onChange={e => setPrice(e.target.value)} />
-            <label> Enter order type: </label>
-                <select value={type} onChange={e => setType(e.target.value)}>
-                    <option value="limit">Limit</option>
-                    <option value="market">Market</option>
-                </select>
-            <label> Enter order quantity: </label>
-                <input type="number"
-                value={quantity}
-                onChange={e => setQuantity(e.target.value)} />
-            <button onClick={handleOrder}>
-                Submit Order
-            </button>
+            <div className='auth-card'>
+                <label> Enter order side: </label>
+                    <select value={side} className='auth-input' onChange={e => setSide(e.target.value)}>
+                        <option value="buy">Buy</option>
+                        <option value="sell">Sell</option>
+                    </select>
+                <label> Enter order price: </label>
+                    <input type="number"
+                    value={price} className='auth-input'
+                    onChange={e => setPrice(e.target.value)} />
+                <label> Enter order type: </label>
+                    <select value={type} className='auth-input' onChange={e => setType(e.target.value)}>
+                        <option value="limit">Limit</option>
+                        <option value="market">Market</option>
+                    </select>
+                <label> Enter order quantity: </label>
+                    <input type="number" className='auth-input'
+                    value={quantity}
+                    onChange={e => setQuantity(e.target.value)} />
+                <button className='auth-button' onClick={handleOrder}>
+                    Submit Order
+                </button>
+            </div>
         </div>
     )
 
