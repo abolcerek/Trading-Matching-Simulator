@@ -28,19 +28,22 @@ function Login ({setToken}){
         }
     }
     return (
-        <div>
-            <label>Enter email: </label>
-                <input type="text" 
-                value={email}
-                onChange={e => setEmail(e.target.value)}/>
-            <label>Enter password: </label>
-                <input type="password" 
-                value={password}
-                onChange={e => setPassword(e.target.value)}/>
-            <button onClick={handleLogin}>
-                Submit
-            </button>
-            <Link to="/signup">Need an account? Sign up</Link>
+        <div className='auth-page'>
+            <div className='auth-card'>
+                <h2>Log In</h2>
+                <label>Enter email: </label>
+                    <input type="text" className='auth-input'
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}/>
+                <label>Enter password: </label>
+                    <input type="password" className='auth-input'
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}/>
+                <button className='auth-button' onClick={handleLogin}>
+                    Submit
+                </button>
+                <Link to="/signup">Need an account? Sign up</Link>
+            </div>
         </div>
     )
 }

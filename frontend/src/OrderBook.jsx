@@ -28,20 +28,22 @@ function OrderBook() {
       <section id="center">
         <div>
           <h2>Book</h2>
-          <ul>
-            {Object.entries(book).map(([key, value]) => (
-              <li key={key}>
-                <p>{key}</p> 
-                <ul>
-                  {value.map((item, index) => (
-                    <li key={index}>
-                      Price: {item.Price}, Quantity: {item.Quantity}
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            ))}
-          </ul>
+          <div className='book'>
+            <div className="asks">
+              {book.Ask.reverse().map((level) => (
+                <div className="ask-row" key={level.Price}>
+                  <span>{level.Price}</span><span>{level.Quantity}</span>
+                </div>
+              ))}
+            </div>
+            <div className="bids">
+              {book.Bid.map((level) => (
+                <div className="bid-row" key={level.Price}>
+                  <span>{level.Price}</span><span>{level.Quantity}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
     </>
