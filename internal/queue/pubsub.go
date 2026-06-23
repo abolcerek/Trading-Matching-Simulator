@@ -7,6 +7,10 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+const Ack = "ack"
+const NackRequeue = "nackRequeue"
+const NackDiscard = "nackDiscard"
+
 func PublishJSON[T any](ch *amqp.Channel, exchange string, key string, val T) error {
 	bytes, err := json.Marshal(val)
 	if err != nil {

@@ -26,7 +26,7 @@ type apiConfig struct {
 	platform string
 	orderbook *engine.OrderBook
 	orderChannel chan types.Envelope
-	eventChannel chan []engine.Event
+	eventChannel chan engine.EventOutput
 	requestChannel chan engine.SnapshotRequest
 	connectionRegistry *Registry
 	rabbitmqConnection *amqp.Connection
@@ -71,7 +71,7 @@ func main() {
 	orderbook := engine.NewOrderBook()
 	ApiCfg.orderbook = orderbook
 	ApiCfg.orderChannel = make(chan types.Envelope, 100)
-	ApiCfg.eventChannel = make(chan []engine.Event, 100)
+	ApiCfg.eventChannel = make(chan engine.EventOutput, 100)
 	ApiCfg.requestChannel = make(chan engine.SnapshotRequest)
 	ApiCfg.connectionRegistry = &Registry{
 		Connections: map[*websocket.Conn]uuid.UUID{},
@@ -82,8 +82,8 @@ func main() {
 		log.Fatalf("Error replaying orders from the database: %v", err)
 	}
 	go engine.RunEngine(ApiCfg.orderbook, ApiCfg.orderChannel, ApiCfg.eventChannel, ApiCfg.requestChannel)
-	// go ApiCfg.Consumer(ApiCfg.eventChannel)
-	// go ApiCfg.Ws(ApiCfg.eventChannel)
+	go ApiCfg.Consumer()
+	go ApiCfg.Ws()
 	go ApiCfg.Publisher(ApiCfg.eventChannel)
 	mux.HandleFunc("GET /api/ws", ApiCfg.HandlerWebSocket)
 	mux.HandleFunc("POST /api/users", ApiCfg.HandlerCreateUser)

@@ -77,6 +77,11 @@ type Event struct {
 	Rest   Rest
 }
 
+type EventOutput struct {
+	Sequence int64
+	Events []Event
+}
+
 type Snapshot struct {
 	Bid []PriceLevel
 	Ask []PriceLevel
@@ -314,7 +319,7 @@ func (orderbook *OrderBook) Snapshot() Snapshot {
 	return snapshot
 }
 
-func RunEngine(orderbook *OrderBook, in <-chan types.Envelope, eventChan chan<- []Event, snapshot <- chan SnapshotRequest) {
+func RunEngine(orderbook *OrderBook, in <-chan types.Envelope, eventChan chan<- EventOutput, snapshot <- chan SnapshotRequest) {
 	for {
 		select {
 		case order := <- in:
@@ -329,8 +334,11 @@ func RunEngine(orderbook *OrderBook, in <-chan types.Envelope, eventChan chan<- 
 				if err != nil {
 					fmt.Println("Error when matching the order")
 				}
-				eventChan <- events
-				fmt.Printf("Here are the events : %v", events)
+				output := EventOutput{
+					Sequence: order.Command_seq_num,
+					Events: events,
+				}
+				eventChan <- output
 			case "cancel":
 				canceled_order_node := OrderNode{
 					Order: order.Order,
@@ -341,8 +349,11 @@ func RunEngine(orderbook *OrderBook, in <-chan types.Envelope, eventChan chan<- 
 				if err != nil {
 					fmt.Println("Error when matching the order")
 				}
-				eventChan <- canceled_event
-				fmt.Printf("Here is the canceled event : %v", canceled_event)
+				output := EventOutput{
+					Sequence: order.Command_seq_num,
+					Events: canceled_event,
+				}
+				eventChan <- output
 			default:
 				fmt.Print("Incorrect order tag")
 			}

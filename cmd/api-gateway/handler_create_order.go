@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"net/http"
@@ -98,11 +99,16 @@ func (cfg apiConfig) HandlerCreateOrder(w http.ResponseWriter, r *http.Request) 
 		Remaining_quantity: database_order.RemainingQuantity,
 		Created_at: database_order.CreatedAt,
 	}
+	command_seq, err := cfg.database.GetSequence(context.Background())
+	if err != nil {
+		err_params.Error = "Error creating order"
+		handleErrors(w, &err_params, 400)
+		return
+	}
 	envelope := types.Envelope{
 		Tag: place,
 		Order: order,
-		Event_sequence_num: 0,
-		// Event sequence number will be implemented later
+		Command_seq_num: command_seq,
 	}
 	cfg.orderChannel <- envelope
 	data, err := json.Marshal(&order)

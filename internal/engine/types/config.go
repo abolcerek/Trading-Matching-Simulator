@@ -21,5 +21,5 @@ type Order struct {
 type Envelope struct {
 	Tag string
 	Order Order
-	Event_sequence_num int64
+	Command_seq_num int64
 }

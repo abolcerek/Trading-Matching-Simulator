@@ -11,6 +11,10 @@ import (
 	"github.com/google/uuid"
 )
 
+type Command struct {
+	SequenceNum int64
+}
+
 type Order struct {
 	OrderID           uuid.UUID
 	SequenceNum       sql.NullInt64

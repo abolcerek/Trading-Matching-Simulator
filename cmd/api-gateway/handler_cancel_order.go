@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
-
+	"context"
 	"github.com/abolcerek/Trading-Matching-Simulator/internal/auth"
 	"github.com/abolcerek/Trading-Matching-Simulator/internal/engine/types"
 	"github.com/google/uuid"
@@ -51,11 +51,16 @@ func (cfg apiConfig) HandlerCancelOrder(w http.ResponseWriter, r *http.Request) 
 		Remaining_quantity: order.RemainingQuantity,
 		Created_at: order.CreatedAt,
 	}
+	command_seq, err := cfg.database.GetSequence(context.Background())
+	if err != nil {
+		err_params.Error = "Error creating order"
+		handleErrors(w, &err_params, 400)
+		return
+	}
 	envelope := types.Envelope{
 		Tag: cancel,
 		Order: canceled_order,
-		Event_sequence_num: 0,
-		// Event sequence number will be implemented later
+		Command_seq_num: command_seq,
 	}
 	cfg.orderChannel <- envelope
 	data, err := json.Marshal(&canceled_order)

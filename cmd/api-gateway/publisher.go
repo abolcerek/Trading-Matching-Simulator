@@ -9,7 +9,7 @@ import (
 
 
 
-func (cfg *apiConfig) Publisher(events <-chan []engine.Event) {
+func (cfg *apiConfig) Publisher(events <-chan engine.EventOutput) {
 	ch, err := cfg.rabbitmqConnection.Channel()
 	if err != nil {
 		fmt.Printf("Error creating channel for rabbitmq: %v", err)

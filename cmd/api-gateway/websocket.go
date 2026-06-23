@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"maps"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/abolcerek/Trading-Matching-Simulator/internal/engine"
+	"github.com/abolcerek/Trading-Matching-Simulator/internal/queue"
 	"github.com/coder/websocket"
 	"github.com/google/uuid"
 )
@@ -76,15 +78,26 @@ func (reg *Registry) broadcast(snapshot []byte) {
 	}
 }
 
-func (cfg *apiConfig) Ws(ch <-chan []engine.Event) {
-	for range ch {
-		reply := make(chan engine.Snapshot)
-		cfg.requestChannel <- engine.SnapshotRequest{Reply: reply}
-		snapshot := <- reply
-		data, err := json.Marshal(&snapshot)
-		if err != nil {
-			fmt.Printf("Error marshalling snapshot: %v", err)
-		}
-		cfg.connectionRegistry.broadcast(data)
+func (cfg *apiConfig) Ws() {
+	ch, err := cfg.rabbitmqConnection.Channel()
+	if err != nil {
+		fmt.Printf("Error creating channel: %v", err)
+		return
 	}
+	err = queue.SubscribeJSON(ch, "events", "ws", "", cfg.handleEventsWs)
+	if err != nil {
+		log.Printf("Error subscribing to queue: %v", err)
+	}
+}
+
+func (cfg *apiConfig) handleEventsWs(output engine.EventOutput) string {
+	reply := make(chan engine.Snapshot)
+	cfg.requestChannel <- engine.SnapshotRequest{Reply: reply}
+	snapshot := <- reply
+	data, err := json.Marshal(&snapshot)
+	if err != nil {
+		return queue.NackRequeue
+	}
+	cfg.connectionRegistry.broadcast(data)
+	return queue.Ack
 }

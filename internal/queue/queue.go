@@ -5,7 +5,7 @@ import (
 )
 
 func Connect() (*amqp.Connection, error) {
-	const conn = "amqp://guest:guest@localhost:5672/"
+	const conn = "amqp://guest:guest@127.0.0.1:5672/"
 	connection, err := amqp.Dial(conn)
 	if err != nil {
 		return &amqp.Connection{}, err
