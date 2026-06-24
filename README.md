@@ -4,12 +4,12 @@ Real-time order matching simulator with a price-time priority matching engine, m
 
 ## Overview
 Users place limit or market orders to the orderbook via the frontend. That request then gets routed through an HTTP handler to the matching engine which matches them by price-time priority. The stream of events emitted from the engine and are then written to a Postgres database and routed live to the browser over websockets.
-<img width="1681" height="1268" alt="2026-06-24-100605_hyprshot" src="https://github.com/user-attachments/assets/a9bfe305-bbda-42f1-a662-2e96adcbd46a" />
+<img width="3376" height="1249" alt="2026-06-24-124438_hyprshot" src="https://github.com/user-attachments/assets/01d04ac5-edd5-4e84-a294-f5ca03aa1a04" />
 ## Architecture
 
 ```mermaid
 graph TD;
-    A[HTTP handler] -->|orders exchange| B(orders exchange);
+    A[HTTP handler] --> B(orders exchange);
     B -->|engine queue| C{matching engine};
     C --> X(events exchange);
     X -->|writer queue| D[db-writer];
