@@ -319,10 +319,15 @@ func (orderbook *OrderBook) Snapshot() Snapshot {
 	return snapshot
 }
 
-func RunEngine(orderbook *OrderBook, in <-chan types.Envelope, eventChan chan<- EventOutput, snapshot <- chan SnapshotRequest) {
+func RunEngine(orderbook *OrderBook, cmd_seq_num int64, in <-chan types.Envelope, eventChan chan<- EventOutput, snapshot <- chan SnapshotRequest) {
+	highestCommandSeqNum := cmd_seq_num
 	for {
 		select {
 		case order := <- in:
+			if order.Command_seq_num <= highestCommandSeqNum {
+				continue
+			}
+			highestCommandSeqNum = order.Command_seq_num
 			switch order.Tag {
 			case "place":
 				placed_order_node := OrderNode{

@@ -1,13 +1,13 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"sync"
-
 	"github.com/abolcerek/Trading-Matching-Simulator/internal/database"
 	"github.com/abolcerek/Trading-Matching-Simulator/internal/engine"
 	"github.com/abolcerek/Trading-Matching-Simulator/internal/engine/types"
@@ -30,6 +30,8 @@ type apiConfig struct {
 	requestChannel chan engine.SnapshotRequest
 	connectionRegistry *Registry
 	rabbitmqConnection *amqp.Connection
+	publishChannel *amqp.Channel
+	mu sync.Mutex
 }
 
 const balance = 1000
@@ -65,7 +67,13 @@ func main() {
 		log.Fatalf("Error connecting to RabbitMQ: %v", err)
 	}
 	defer conn.Close()
+	pubChan, err := conn.Channel()
+	if err != nil {
+		log.Fatalf("Error creating channel: %v", err)
+	}
 	ApiCfg.rabbitmqConnection = conn
+	ApiCfg.publishChannel = pubChan
+	ApiCfg.mu = sync.Mutex{}
 	ApiCfg.JWT_secret = jwtSecret
 	ApiCfg.platform = platform
 	orderbook := engine.NewOrderBook()
@@ -81,7 +89,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error replaying orders from the database: %v", err)
 	}
-	go engine.RunEngine(ApiCfg.orderbook, ApiCfg.orderChannel, ApiCfg.eventChannel, ApiCfg.requestChannel)
+	highestSeqNum, err := ApiCfg.database.GetCommandSeq(context.Background())
+	if err != nil {
+		log.Fatalf("Error getting highest sequence number: %v", err)
+	}
+	go engine.RunEngine(ApiCfg.orderbook, highestSeqNum, ApiCfg.orderChannel, ApiCfg.eventChannel, ApiCfg.requestChannel)
+	go ApiCfg.EngineConsumer()
 	go ApiCfg.Consumer()
 	go ApiCfg.Ws()
 	go ApiCfg.Publisher(ApiCfg.eventChannel)

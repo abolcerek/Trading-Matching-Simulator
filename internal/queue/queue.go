@@ -10,23 +10,34 @@ func Connect() (*amqp.Connection, error) {
 	if err != nil {
 		return &amqp.Connection{}, err
 	}
-	exchange := "events"
-	exchangeKind := "fanout"
+	outboundExchange := "events"
+	inboundExchange := "orders"
+	outboundExchangeKind := "fanout"
+	inboundExchangeKind := "direct"
 	writerQueueName := "writer"
 	wsQueueName := "ws"
+	engineQueueName := "engine"
 	ch, err := connection.Channel()
 	if err != nil {
 		return nil,  err
 	}
-	err = ch.ExchangeDeclare(exchange, exchangeKind, true, false, false, false, nil)
+	err = ch.ExchangeDeclare(outboundExchange, outboundExchangeKind, true, false, false, false, nil)
 	if err != nil {
 		return nil,  err
 	}
-	_, err = DeclareAndBind(ch, exchange, writerQueueName, "")
+	err = ch.ExchangeDeclare(inboundExchange, inboundExchangeKind, true, false, false, false, nil)
 	if err != nil {
 		return nil, err
 	}
-	_, err = DeclareAndBind(ch, exchange, wsQueueName, "")
+	_, err = DeclareAndBind(ch, outboundExchange, writerQueueName, "")
+	if err != nil {
+		return nil, err
+	}
+	_, err = DeclareAndBind(ch, outboundExchange, wsQueueName, "")
+	if err != nil {
+		return nil, err
+	}
+	_, err = DeclareAndBind(ch, inboundExchange, engineQueueName, "")
 	if err != nil {
 		return nil, err
 	}

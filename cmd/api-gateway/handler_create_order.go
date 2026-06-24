@@ -10,6 +10,7 @@ import (
 	"github.com/abolcerek/Trading-Matching-Simulator/internal/auth"
 	"github.com/abolcerek/Trading-Matching-Simulator/internal/database"
 	"github.com/abolcerek/Trading-Matching-Simulator/internal/engine/types"
+	"github.com/abolcerek/Trading-Matching-Simulator/internal/queue"
 	"github.com/google/uuid"
 )
 
@@ -99,6 +100,8 @@ func (cfg apiConfig) HandlerCreateOrder(w http.ResponseWriter, r *http.Request) 
 		Remaining_quantity: database_order.RemainingQuantity,
 		Created_at: database_order.CreatedAt,
 	}
+	cfg.mu.Lock()
+	defer cfg.mu.Unlock()
 	command_seq, err := cfg.database.GetSequence(context.Background())
 	if err != nil {
 		err_params.Error = "Error creating order"
@@ -110,7 +113,12 @@ func (cfg apiConfig) HandlerCreateOrder(w http.ResponseWriter, r *http.Request) 
 		Order: order,
 		Command_seq_num: command_seq,
 	}
-	cfg.orderChannel <- envelope
+	err = queue.PublishJSON(cfg.publishChannel, "orders", "", envelope)
+	if err != nil {
+		err_params.Error = "Error creating order"
+		handleErrors(w, &err_params, 400)
+		return
+	}
 	data, err := json.Marshal(&order)
 	if err != nil {
 		err_params.Error = "Error marshalling JSON"
