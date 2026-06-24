@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func (cfg apiConfig) HandlerCancelOrder(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) HandlerCancelOrder(w http.ResponseWriter, r *http.Request) {
 	err_params := error_parameters{}
 	token, err := auth.GetBearerToken(r.Header)
 	if err != nil {
