@@ -4,7 +4,7 @@ Real-time order matching simulator with a price-time priority matching engine, m
 
 ## Overview
 Users place limit or market orders to the orderbook via the frontend. That request then gets routed through an HTTP handler to the matching engine which matches them by price-time priority. The stream of events emitted from the engine and are then written to a Postgres database and routed live to the browser over websockets.
-
+<img width="1681" height="1268" alt="2026-06-24-100605_hyprshot" src="https://github.com/user-attachments/assets/a9bfe305-bbda-42f1-a662-2e96adcbd46a" />
 ## Architecture
 
 ```mermaid
@@ -97,7 +97,7 @@ psql "<connection_string>"
 
 5. **Configure environment variables.** Create a `.env` file in the project root:
 ```dotenv
-DB_URL="postgres://postgres:YOUR_PASSWORD@localhost:5432/exchange?sslmode=disable"
+DB_URL="postgres://YOUR_USERNAME:YOUR_PASSWORD@localhost:5432/exchange?sslmode=disable"
 JWT_SECRET="YOUR_GENERATED_SECRET_TOKEN"
 PORT="8080"
 PLATFORM="dev"
